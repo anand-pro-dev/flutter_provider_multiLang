@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:device_preview/device_preview.dart';
@@ -18,24 +20,32 @@ import 'package:mshora/utils/constants.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  AppLanguageProvider appLanguage = AppLanguageProvider();
-  await appLanguage.fetchLocale();
 
   runApp(
     // Check if the platform is web
     kIsWeb
-        ? DevicePreview(
-            enabled: true, // Enable Device Preview only for Web
-            tools: const [
-              ...DevicePreview.defaultTools,
+        ? MultiProvider(
+            providers: [
+              ChangeNotifierProvider(
+                create: (_) => AppLanguageProvider(),
+              ),
+              ChangeNotifierProvider(
+                create: (_) => BottomNavVisibilityProvider(),
+              ),
             ],
-            builder: (context) => MyApp(
-              appLanguage: appLanguage,
-            ),
+            child: MyApp(),
           )
-        : MyApp(
-            appLanguage: appLanguage,
-          ), // Directly use MyApp for other platforms
+        : MultiProvider(
+            providers: [
+              ChangeNotifierProvider(
+                create: (_) => AppLanguageProvider(),
+              ),
+              ChangeNotifierProvider(
+                create: (_) => BottomNavVisibilityProvider(),
+              ),
+            ],
+            child: MyApp(),
+          ),
   );
 
   /// to control with SystemUI appBar ///
@@ -47,78 +57,45 @@ void main() async {
   ));
 }
 
-class MyApp extends StatelessWidget {
-  final AppLanguageProvider? appLanguage;
-  const MyApp({super.key, required this.appLanguage});
+class MyApp extends StatefulWidget {
+  const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  @override
+  void initState() {
+    super.initState();
+    // Fetch locale once app starts
+    Future.microtask(() =>
+        Provider.of<AppLanguageProvider>(context, listen: false).fetchLocale());
+  }
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(
-          create: (_) => AppLanguageProvider(),
+    return Consumer<AppLanguageProvider>(builder: (context, model, child) {
+      log(model.appLocal.toString());
+      return MaterialApp(
+        title: 'mshora',
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+          useMaterial3: true,
         ),
-        ChangeNotifierProvider(
-          create: (_) => BottomNavVisibilityProvider(),
-        ),
-      ],
-      child: Consumer<AppLanguageProvider>(builder: (context, model, child) {
-        return MaterialApp(
-          title: 'Localization Demo',
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-            useMaterial3: true,
-          ),
-          home: const LogInScreen(),
-          locale: model.appLocal,
-          supportedLocales: const [
-            Locale('en', 'US'),
-            Locale('ne', 'NP'),
-          ],
-          localizationsDelegates: [
-            AppLocalizations.delegate,
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate
-          ],
-        );
-      }),
-
-      // child: MaterialApp(
-      //   debugShowCheckedModeBanner: false,
-
-      //   // Use DevicePreview only if the app is running on the web
-      //   locale: kIsWeb ? DevicePreview.locale(context) : null,
-      //   builder: kIsWeb ? DevicePreview.appBuilder : null,
-
-      //   title: 'mshora',
-      //   theme: ThemeData(
-      //     scaffoldBackgroundColor: AppColors.bgSecondayLight,
-      //     colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-      //     textTheme: GoogleFonts.ptSansTextTheme(
-      //       Theme.of(context).textTheme,
-      //     ),
-      //   ).copyWith(
-      //     pageTransitionsTheme: const PageTransitionsTheme(
-      //       builders: <TargetPlatform, PageTransitionsBuilder>{
-      //         TargetPlatform.android: ZoomPageTransitionsBuilder(),
-      //       },
-      //     ),
-      //   ),
-
-      //   // Set the appropriate home screen
-      //   // home: LogInScreen(),
-      //   // home: TestScreen(),
-      //   home: SplashScreen(),
-      //   // home: ShowCurrentDevice(),
-      //   // home: OnBoadingStart(),
-      //   // home: ProgressionIndicator(),
-      //   // home: OnBoadingSecond(),
-      //   // home: HideBottomToScroll(),
-      //   // home: ProfileScreen(),
-      //   // home: const DashBoardUserScreen(),
-      //   // home: const DashBoadServiceProvider(),
-      // ),
-    );
+        home: const LogInScreen(),
+        locale: model.appLocal,
+        supportedLocales: const [
+          Locale('en', 'US'),
+          Locale('ne', 'NP'),
+        ],
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate
+        ],
+      );
+    });
   }
 }
